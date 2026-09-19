@@ -17,6 +17,8 @@ require "json"
 require "socket"
 require "timeout"
 require "yaml"
+require "fileutils"
+require "shellwords"
 
 DESIGN_HOME = ENV.fetch("SG_DESIGN_HOME", File.expand_path("~/repo/show-builder"))
 SONIC_PI_DIR = "/usr/lib/sonic-pi/app/server/ruby"
@@ -131,8 +133,15 @@ module SonicPiHelper
     [val].pack("g").bytes
   end
 
+  # Sonic Pi の公式 OscEncode は文字列を常に
+  #   size + 4 - (size % 4) バイト(= 最低 3〜4 バイトのヌル) で送る。
+  # 4 の倍数バイトの文字列ではパディング 0 だとヌル終端が無くなり、
+  # Sonic Pi 側 oscdecode (m.index でヌル探索) が失敗するため
+  # ここでは公式と同じサイズ計算を使う。
   def osc_arg_string(val)
-    osc_pad(val).bytes
+    size = val.bytesize
+    target = size + 4 - (size % 4)
+    (val + "\x00" * (target - size)).bytes
   end
 
   def osc_pack(address, args)
@@ -234,6 +243,25 @@ module SonicPiHelper
     # Sonic Pi の sonic-pi-server.rb は args[0]→gui_id, args[1]→string として eval する。
     send_osc(host, SPIDER_OSC_PORT, "/run-code", id, code)
   end
+
+  # 音楽コードを録音付きで実行し WAV を書き出す。
+  # 戻り値: 生成された WAV パス（無ければ nil）
+  def record_bgm(code, out_wav, host = "127.0.0.1")
+    send_code("recording_start\n", host, 1)
+    sleep 0.4
+    send_code(code, host, 2)
+    # コード実行時間を推測して待つ（sleep N の合計 + 余裕）
+    total = 0.0
+    code.each_line do |l|
+      if l =~ /sleep\s+([\d.]+)/
+        total += Regexp.last_match(1).to_f
+      end
+    end
+    sleep(total + 1.2)
+    send_code(%(recording_save "#{out_wav}"\n), host, 3)
+    sleep 1.0
+    File.exist?(out_wav) ? out_wav : nil
+  end
 end
 
 # ---- tool implementations ----
@@ -253,10 +281,11 @@ end
 
 server.register_tool(
   "se_render",
-  "music-json → Sonic Pi コード → 3秒 mp3 レンダリング (Spider OSC)",
+  "music-json → Sonic Pi コード → 録音 → mp3 レンダリング (Spider OSC + recording_save)",
   { "properties" => {
       "music" => { "type" => "string", "description" => "design repo 内 music-json path" },
-      "out" => { "type" => "string", "description" => "出力 mp3 path" } },
+      "out" => { "type" => "string", "description" => "出力 mp3 path" },
+      "max_seconds" => { "type" => "number", "description" => "最大長（秒）。デフォルト 3.0" } },
     "required" => [] }
 ) do |args|
   music = SonicPiHelper.load_music(args["music"] || "music/lo-fi-radio-amin.json")
@@ -265,16 +294,24 @@ server.register_tool(
   code = SonicPiHelper.music_to_sp(music, max_seconds: max_sec)
 
   unless SonicPiHelper.spider_alive?
-    raise "Sonic Pi Spider is not running. Start: ruby #{SONIC_PI_DIR}/bin/sonic-pi-server.rb --headless"
+    raise "Sonic Pi Spider is not running. Start: ruby #{SONIC_PI_DIR}/bin/sonic-pi-server.rb"
   end
 
-  SonicPiHelper.send_code(code)
-
-  # 録音待ち (Spider 側の録音コマンドは別途。一旦コード送信までを返す)
   FileUtils.mkdir_p(File.dirname(out))
-  rb_out = out.sub(/\.mp3\z/, ".rb")
-  File.write(rb_out, code)
-  "code sent to Spider (#{max_sec}s)\nwrote code: #{rb_out}\nNOTE: mp3 化は Sonic Pi の録音機能 (record) 経由。Spider が alive なら手動で再録音可。"
+  wav = out.sub(/\.mp3\z/, ".wav")
+  written = SonicPiHelper.record_bgm(code, wav)
+  raise "recording failed: #{wav}" unless written && File.size(wav) > 44
+
+  # wav → mp3 (ffmpeg がある場合)
+  kb = File.size(wav) / 1024
+  msg = "recorded: #{wav} (#{kb} KB)"
+  if system("which ffmpeg >/dev/null 2>&1")
+    ok = system("ffmpeg -y -loglevel error -i #{wav.shellescape} #{out.shellescape}")
+    if ok && File.exist?(out)
+      msg += "\nmp3: #{out} (#{File.size(out) / 1024} KB)"
+    end
+  end
+  msg
 end
 
 server.register_tool(
