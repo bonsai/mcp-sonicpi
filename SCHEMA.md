@@ -64,6 +64,18 @@ osc args   : [gui_id: int, code: string]
 | OSC cues | 4560 |
 | Websocket | 4562 |
 
+### Elixir での送信例
+
+```elixir
+payload = <<"/run-code"::binary, 0::size(8), ",is"::binary, 0::size(8),
+            gui_id::32, code::binary>>
+# + string 4byte パディング（コード本体）
+{:ok, s} = :gen_udp.open(0, [:binary, active: false])
+:gen_udp.send(s, ~c"127.0.0.1", 4557, payload)
+```
+
+完全実装は `examples/elixir_osc_spi.exs`。
+
 ## music-json → Sonic Pi コード変換スキーム
 
 ```

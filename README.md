@@ -57,3 +57,15 @@ ruby /usr/lib/sonic-pi/app/server/ruby/bin/sonic-pi-server.rb
 
 music-json スキーマ等は **show-builder repo**（`~/repo/show-builder`）が
 ソース・オブ・トゥルース。
+
+## Elixir からも制御可
+
+`examples/elixir_osc_spi.exs` — Elixir で書いた最小 OSC クライアント。
+Sonic Pi の `/run-code` [gui_id:int, code:string] を UDP 4557 へ送信する。
+
+```bash
+elixir examples/elixir_osc_spi.exs
+```
+
+- 依存: Elixir/Erlang のみ（`:gen_udp`、外部パッケージ不要）
+- この OSC エンコーダは mcp-sonicpi の Ruby 実装と同一プロトコル
