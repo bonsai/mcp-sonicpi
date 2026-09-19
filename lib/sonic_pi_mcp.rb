@@ -229,8 +229,10 @@ module SonicPiHelper
     false
   end
 
-  def send_code(code, host = "127.0.0.1", id = "sonic-pi-mcp")
-    send_osc(host, SPIDER_OSC_PORT, "/run-code", id, id, code)
+  def send_code(code, host = "127.0.0.1", id = 1)
+    # OSC 規約: /run-code は [gui_id:int, code:string] の2引数。
+    # Sonic Pi の sonic-pi-server.rb は args[0]→gui_id, args[1]→string として eval する。
+    send_osc(host, SPIDER_OSC_PORT, "/run-code", id, code)
   end
 end
 
