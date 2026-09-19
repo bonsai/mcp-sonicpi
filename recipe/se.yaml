@@ -1,0 +1,12 @@
+# Sonic Pi ワークフロー例
+# se_workflow_yaml ツールで読み込む。
+#
+# music:   design repo の music-json パス
+# publish: 出力先
+
+music:
+  path: music/lo-fi-radio-amin.json
+  max_seconds: 3.0
+
+publish:
+  out: out/se/se.mp3
