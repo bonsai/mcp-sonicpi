@@ -7,7 +7,7 @@ MCP サーバーが公開する **ツール型**・**OSC プロトコル**・**�
 | tool | params (型) | returns (型) |
 | --- | --- | --- |
 | `se_preview` | `music: string` | `string`（Sonic Pi Ruby コード） |
-| `se_render` | `music: string`, `out: string`, `max_seconds: float` | `string`（`code sent to Spider ...` / `Error: ...`） |
+| `se_render` | `music: string`, `out: string`, `max_seconds: float` | `string`（`recorded: <wav> (KB)\nmp3: <out> (KB)` / `Error: ...`） |
 | `se_workflow_yaml` | `yaml_file: string` | `string`（結果の結合） |
 | `sp_status` | — | `string`（`Sonic Pi Spider (port 4557): OK/not running`） |
 
@@ -52,8 +52,22 @@ osc args   : [gui_id: int, code: string]
 ### OSC エンコード規則
 
 - アドレス・文字列は 4 バイト境界に `\x00` パディング。
+- **文字列引数の公式サイズ計算**: `size + 4 - (size % 4)` バイト（= 常に最低 3〜4 バイトのヌル）。
+  4 の倍数バイトの文字列でもパディング 0 にしてはならない（Sonic Pi 側 oscdecode が
+  `m.index` でヌル終端を探し、無いと `undefined method '%' for nil` で失敗する）。
+  `lib/sonic_pi_mcp.rb` の `osc_arg_string` は `SonicPi::OSC::OscEncode` とバイト一致すること。
 - int: big-endian `N`、float: big-endian `g`。
 - タグ文字列は `,` 始まり（例 `,is`）。
+
+### 録音（se_render が行う手順）
+
+1. `/run-code` `recording_start\n` → sleep 0.4
+2. `/run-code` 音楽コード（id=2）→ `sleep` 合計 + 1.2 秒待機
+3. `/run-code` `recording_save "<out.wav>"\n` → sleep 1.0
+4. `ffmpeg` で wav → mp3
+
+戻り値の wav/mp3 は `music-json.form.total_seconds` を超えて数秒長くなる場合がある
+（録音開始/終了のオーバーヘッド分）。
 
 ### ポート
 
