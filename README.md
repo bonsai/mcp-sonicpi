@@ -53,11 +53,6 @@ ruby /usr/lib/sonic-pi/app/server/ruby/bin/sonic-pi-server.rb
 - Sonic Pi（スパイダー・サーバー）
 - 音声デバイス（WSL では PulseAudio 等の仮想デバイスが必要）
 
-## design repo
-
-music-json スキーマ等は **show-builder repo**（`~/repo/show-builder`）が
-ソース・オブ・トゥルース。
-
 ## Elixir からも制御可
 
 `examples/elixir_osc_spi.exs` — Elixir で書いた最小 OSC クライアント。

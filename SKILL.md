@@ -45,10 +45,6 @@ JSON-RPC リクエストを stdio に流す:
 | `se_workflow_yaml` | YAML 指示ファイルから Sonic Pi ワークフロー実行 |
 | `sp_status` | Sonic Pi Spider の稼働状態を確認 |
 
-## music-json
-
-music-json スキーマ等は **show-builder repo**（`~/repo/show-builder`）がソース・オブ・トゥルース。
-
 ## Elixir からも制御可
 
 `examples/elixir_osc_spi.exs` — 最小 OSC クライアント（`:gen_udp` のみ、外部パッケージ不要）。

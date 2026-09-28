@@ -30,7 +30,6 @@ MCP サーバーが公開する **ツール型**・**OSC プロトコル**・**�
 ## SG_DESIGN_HOME 解決規則
 
 - `SG_DESIGN_HOME` 環境変数があればそれを正とする。
-- 無ければ `~/repo/show-builder`。
 - `music` 引数が絶対 path ならそのまま。相対なら `SG_DESIGN_HOME / <path>`。
 
 ## Sonic Pi OSC プロトコル
